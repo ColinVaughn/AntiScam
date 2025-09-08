@@ -6,15 +6,19 @@ RUN apt-get update && apt-get install -y \
     cmake \
     git \
     wget \
+    libcurl4-openssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install llama.cpp
+# Build llama.cpp using CMake
 WORKDIR /tmp
 RUN git clone https://github.com/ggerganov/llama.cpp.git && \
     cd llama.cpp && \
-    make && \
-    cp main /usr/local/bin/llama-cpp-server && \
-    cd .. && rm -rf llama.cpp
+    mkdir build && \
+    cd build && \
+    cmake .. -DLLAMA_CURL=OFF && \
+    make -j$(nproc) && \
+    cp bin/llama-server /usr/local/bin/llama-cpp-server && \
+    cd ../.. && rm -rf llama.cpp
 
 WORKDIR /app
 
