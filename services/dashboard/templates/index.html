@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anti-Scam Bot Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .confidence-bar {
+            background: linear-gradient(90deg, #28a745 0%, #ffc107 50%, #dc3545 100%);
+            height: 8px;
+            border-radius: 4px;
+        }
+        .confidence-indicator {
+            width: 4px;
+            height: 12px;
+            background: #000;
+            position: relative;
+            top: -2px;
+            border-radius: 2px;
+        }
+        .message-card {
+            transition: transform 0.2s ease-in-out;
+        }
+        .message-card:hover {
+            transform: translateY(-2px);
+        }
+        .badge-scam { background-color: #dc3545; }
+        .badge-suspicious { background-color: #ffc107; color: #000; }
+        .badge-not-scam { background-color: #28a745; }
+        .sidebar {
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+        .main-content {
+            min-height: 100vh;
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <h5 class="px-3 mb-3">
+                        <i class="fas fa-shield-alt me-2"></i>Anti-Scam Dashboard
+                    </h5>
+                    
+                    <!-- Guild Selector -->
+                    <div class="px-3 mb-3">
+                        <label for="guildSelect" class="form-label">Select Guild</label>
+                        <select class="form-select" id="guildSelect">
+                            <option value="">Choose a guild...</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Navigation -->
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" data-page="overview">
+                                <i class="fas fa-chart-pie me-2"></i>Overview
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-page="flagged-messages">
+                                <i class="fas fa-flag me-2"></i>Flagged Messages
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-page="configuration">
+                                <i class="fas fa-cog me-2"></i>Configuration
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-page="logs">
+                                <i class="fas fa-list-alt me-2"></i>System Logs
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            
+            <!-- Main Content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <!-- Header -->
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2" id="pageTitle">Overview</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshData()">
+                                <i class="fas fa-sync-alt me-1"></i>Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Content Pages -->
+                <div id="overviewPage" class="page-content">
+                    <!-- Stats Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3 mb-3">
+                            <div class="card stats-card">
+                                <div class="card-body text-center">
+                                    <h3 class="mb-1" id="totalMessages">-</h3>
+                                    <p class="mb-0">Total Flagged</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-danger text-white">
+                                <div class="card-body text-center">
+                                    <h3 class="mb-1" id="scamCount">-</h3>
+                                    <p class="mb-0">Scams Detected</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-warning text-dark">
+                                <div class="card-body text-center">
+                                    <h3 class="mb-1" id="suspiciousCount">-</h3>
+                                    <p class="mb-0">Suspicious</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h3 class="mb-1" id="pendingCount">-</h3>
+                                    <p class="mb-0">Pending Review</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Charts -->
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Detection Trends (Last 7 Days)</h5>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="trendsChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Action Distribution</h5>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="actionsChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="flaggedMessagesPage" class="page-content d-none">
+                    <!-- Filters -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <select class="form-select" id="statusFilter">
+                                <option value="">All Statuses</option>
+                                <option value="pending">Pending Review</option>
+                                <option value="reviewed">Reviewed</option>
+                                <option value="approved">Approved</option>
+                                <option value="deleted">Deleted</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-primary" onclick="loadFlaggedMessages()">
+                                <i class="fas fa-search me-1"></i>Filter
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Messages List -->
+                    <div id="messagesList">
+                        <!-- Messages will be loaded here -->
+                    </div>
+                </div>
+                
+                <div id="configurationPage" class="page-content d-none">
+                    <form id="configForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Detection Settings</h5>
+                                <div class="mb-3">
+                                    <label for="autoDeleteConfidence" class="form-label">Auto-Delete Confidence</label>
+                                    <input type="number" class="form-control" id="autoDeleteConfidence" 
+                                           min="0" max="1" step="0.01">
+                                    <div class="form-text">Messages above this confidence will be automatically deleted</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="flagThreshold" class="form-label">Flag Threshold</label>
+                                    <input type="number" class="form-control" id="flagThreshold" 
+                                           min="0" max="1" step="0.01">
+                                    <div class="form-text">Messages above this confidence will be flagged for review</div>
+                                </div>
+                                
+                                <h5>Feature Toggles</h5>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enableRules">
+                                    <label class="form-check-label" for="enableRules">
+                                        Enable Rule-based Detection
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enableOcr">
+                                    <label class="form-check-label" for="enableOcr">
+                                        Enable OCR Processing
+                                    </label>
+                                </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="enableLlm">
+                                    <label class="form-check-label" for="enableLlm">
+                                        Enable LLM Analysis
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <h5>Channels</h5>
+                                <div class="mb-3">
+                                    <label for="modChannelId" class="form-label">Moderator Channel ID</label>
+                                    <input type="text" class="form-control" id="modChannelId" 
+                                           placeholder="Channel ID for moderator notifications">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="logChannelId" class="form-label">Log Channel ID</label>
+                                    <input type="text" class="form-control" id="logChannelId" 
+                                           placeholder="Channel ID for system logs">
+                                </div>
+                                
+                                <h5>Data Retention</h5>
+                                <div class="mb-3">
+                                    <label for="retentionDays" class="form-label">Retention Days</label>
+                                    <input type="number" class="form-control" id="retentionDays" 
+                                           min="1" max="365">
+                                    <div class="form-text">How long to keep flagged message data</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-1"></i>Save Configuration
+                        </button>
+                    </form>
+                </div>
+                
+                <div id="logsPage" class="page-content d-none">
+                    <!-- Log Filters -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <select class="form-select" id="logLevelFilter">
+                                <option value="">All Levels</option>
+                                <option value="INFO">Info</option>
+                                <option value="WARNING">Warning</option>
+                                <option value="ERROR">Error</option>
+                                <option value="CRITICAL">Critical</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="componentFilter">
+                                <option value="">All Components</option>
+                                <option value="bot">Bot</option>
+                                <option value="detector">Detector</option>
+                                <option value="ocr">OCR</option>
+                                <option value="llm">LLM</option>
+                                <option value="actioner">Actioner</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-primary" onclick="loadLogs()">
+                                <i class="fas fa-search me-1"></i>Filter
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Logs List -->
+                    <div id="logsList">
+                        <!-- Logs will be loaded here -->
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Action Modal -->
+    <div class="modal fade" id="actionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Moderator Action</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Take action on this flagged message:</p>
+                    <div class="mb-3">
+                        <textarea class="form-control" id="actionReason" rows="3" 
+                                  placeholder="Optional reason for this action..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" onclick="takeAction('approve')">
+                        <i class="fas fa-check me-1"></i>Approve (Not Scam)
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="takeAction('warn')">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Warn User
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="takeAction('delete_ban')">
+                        <i class="fas fa-ban me-1"></i>Delete & Ban
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/dashboard.js"></script>
+</body>
+</html>

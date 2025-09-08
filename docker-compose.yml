@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: antiscam_db
+      POSTGRES_USER: antiscam
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U antiscam -d antiscam_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  ocr-service:
+    build:
+      context: .
+      dockerfile: services/ocr/Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    volumes:
+      - ./temp_images:/app/temp_images
+
+  llm-service:
+    build:
+      context: .
+      dockerfile: services/llm/Dockerfile
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MODEL_PATH=/app/models/quantized_model.gguf
+    depends_on:
+      - redis
+    volumes:
+      - ./models:/app/models
+
+  bot:
+    build:
+      context: .
+      dockerfile: services/bot/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://antiscam:password@postgres:5432/antiscam_db
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: services/dashboard/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://antiscam:password@postgres:5432/antiscam_db
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
